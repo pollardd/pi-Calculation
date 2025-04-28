@@ -2,6 +2,9 @@
 Pi-Dec-Chudnovsky_01.txt
 Pi-Dec-Chudnovsky_02.txt
 
+# Ignore programs actual output file
+computed_pi.txt
+
 # Ignore build artifacts
 *.o
 calculate_pi
