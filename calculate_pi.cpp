@@ -31,7 +31,8 @@ std::string calculation_method = "gauss_legendre";  // Default calculation metho
 std::atomic <bool> keep_monitoring(true);           // Shared flag to stop monitoring thread
 std::atomic <long long> iteration_counter(0);       // Global counter
 std::atomic <long long> iterations(0);              // Ensure updates are visible to monitoring
-std::string reference_filename = "Pi-Dec-Chudnovsky_01.txt"; // Default
+//std::string reference_filename = "Pi-Dec-Chudnovsky_01.txt"; // Default
+std::string reference_filename = "pi_reference_1M.txt"; // Default
 std::atomic <bool> stop_requested(false);
 std::mutex console_mutex;                           // Used to limit console output to a single thread at a time.
 
@@ -263,7 +264,7 @@ void print_power_usage()
 {
     std::lock_guard<std::mutex> lock(console_mutex);    // Lock console output.
 
-    if (rapl_domains.empty()) {
+   if (rapl_domains.empty()) {
         if (debug_level >= 2) {
             std::cerr << "[Info] No energy data to report (power monitoring disabled).\n";
         }
@@ -575,10 +576,11 @@ void monitor_system()
             std::cout << "--- Progress Initialization not complete yet (0%) ---\n";
         }
     }
-    if (debug_level >=2)
-    {
-        print_accumulated_energy();
-    }
+//    <TODO> Power monitoring disabled due to glitches with detecting power domains automatically
+//    if (debug_level >=2)
+//    {
+//        print_accumulated_energy();
+//    }
 }
 
 // Function to output verification result
