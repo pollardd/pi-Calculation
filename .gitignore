@@ -1,0 +1,16 @@
+# Ignore big data reference files
+Pi-Dec-Chudnovsky_01.txt
+Pi-Dec-Chudnovsky_02.txt
+
+# Ignore build artifacts
+*.o
+calculate_pi
+
+# VS Code settings
+.vscode/
+
+# Other common junk
+*.log
+
+# Temporary GPU test files
+GPU
