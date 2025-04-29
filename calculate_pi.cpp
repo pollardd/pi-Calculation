@@ -26,7 +26,7 @@ using namespace std;
 namespace fs = std::filesystem;
 
 // Global Variables
-std::string version = "1.1";
+std::string version = "1.0.0";
 std::string calculation_method = "gauss_legendre";  // Default calculation method
 std::atomic <bool> keep_monitoring(true);           // Shared flag to stop monitoring thread
 std::atomic <long long> iteration_counter(0);       // Global counter
