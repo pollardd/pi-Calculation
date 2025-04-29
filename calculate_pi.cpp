@@ -347,8 +347,7 @@ void print_accumulated_energy()
         }
         return; // Nothing to print
     }
-    // std::lock_guard<std::mutex> lock(console_mutex);  //Lock console output
-
+ 
     const int energy_precision = 12;
     const int label_width = 15; // Total width to right-align labels before ':'
 
@@ -391,7 +390,6 @@ void calculate_pi_multithreaded(
     const std::vector<std::string>& reference_terms,
     const std::vector<std::string>& reference_sums)
 {
-    // int thread_count = get_worker_thread_count();
     if (debug_level >=2)
     {
        std::cerr << "Using " << thread_count << " worker threads for Chudnovsky calculation.\n";
@@ -459,7 +457,7 @@ void calculate_pi_multithreaded(
     }
 
     // Display the shared_results
-    if (debug_level >=2 )
+    if (debug_level >=3 )
     {
         for (int i = 0; i < thread_count; ++i)
         {
@@ -476,7 +474,7 @@ void calculate_pi_multithreaded(
 
     for (int i = 0; i < thread_count; ++i)
     {
-        if (debug_level >= 2)
+        if (debug_level >= 3)
         {
             std::cerr << "[Main] shared_results[" << i << "] = ";
             mpfr_out_str(stderr, 10, 80, shared_results[i], MPFR_RNDN);
@@ -485,7 +483,7 @@ void calculate_pi_multithreaded(
 
         mpfr_add(total_sum, total_sum, shared_results[i], MPFR_RNDN);
 
-        if (debug_level >= 2)
+        if (debug_level >= 3)
         {
             std::cerr << "Accumulated total after thread[" << i << "] = ";
             mpfr_out_str(stderr, 10, 80, total_sum, MPFR_RNDN);
@@ -512,9 +510,13 @@ void calculate_pi_multithreaded(
     mpfr_clear(sqrt_10005);
 
     // Optional verbose final output
-    if (debug_level >= 1)
+    if (debug_level >= 3)
     {
         mpfr_printf("Final computed pi = %.*Rf\n", decimal_places, pi_approx);
+    }
+    else
+    {
+        mpfr_printf("Final computed pi output to file name computed_pi.txt \n");
     }
 }
 

@@ -43,7 +43,7 @@ Usage
 
 Options:
 Option	Description
-  -f, --file <filename>        Specify reference Pi file (default ./Pi-Dec-Chudnovsky_01.txt) 
+  -f, --file <filename>        Specify reference Pi file (default ./pi_reference_1M.txt) 
   -d, --debug <1|2|3>          Set debug level (default: 0)
   -m, --method <name>          Choose method: 'gauss_legendre' (default) or 'chudnovsky'
       --threads <count>        Number of threads to use (valid only for Chudnovsky) 1=execute in main thread, default is max -1.
@@ -61,14 +61,14 @@ Runtime Warnings
     See README.md for instructions to install 'lm-sensors' if desired.
 
     The program uses a know good value for pi to decide on success or failure of the calculation. This is specified with the -f flag.
-    If not specified the program will default to ./Pi-Dec-Chudnovsky_01.txt.
-    I downloaded this file containing pi calculated to 1 billion places using the "Chudnovsky Formula" from this web site. There are much larger files there :)
+    If not specified the program will default to ./pi_reference_1M.txt. (1 million decimal places)
+    A file containing pi calculated to 1 billion places using the "Chudnovsky Formula" can be downloaded from this web site. There are much larger files there :)
     https://ehfd.github.io/computing/calculation-results-for-pi-up-to-50-000-000-000-digits/
         Note: The digits are released under an Attribution-NonCommercial-NoDerivatives 4.0 International License, which prohibits 
         commercial use and distribution of remixed, transformed, or built upon versions without consent. Proper attribution and 
         indication of changes are required even if it is not a prohibited use case.
         (Personaly I'm not sure how you can put a license on pi but here it is)
-        The file length is 1,000,000,002 characters. Note the extra two characters are the "3." at the begining, making up 1 billion decimal places.
+        The test file included is length 1,000,002 characters. Note the extra two characters are the "3." at the begining, making up 1 billion decimal places.
         
 Notes
     Memory Consideration:
@@ -77,27 +77,31 @@ Notes
 
     CPU Temperature Monitoring:
     Ensure lm-sensors is installed and configured correctly:
-
+     
     sudo apt install lm-sensors
     sudo sensors-detect
 
     For further help, refer to the lm-sensors documentation.
 
 License
-    Do what ever you like but don't call it your own.
+    Do what ever you like but don't delete my name and  call it your own.
 
 Future Improvements
     GPU acceleration 
     Cross-platform compatibility enhancements (Mac/Windows)
-    Automatic dependency checker in a setup script or Makefile
+    Automatic dependency checker in a setup script or Makefile (mostly complete needs more testing)
 
 Build and Install Notes
-Make sure that install.sh is executable with chmod +x install.shSummary of Steps:
-The build process is expecting a folder to already exists /usr/local/bin and be executable.
+Make sure that install.sh is executable with chmod +x install.sh
 
-    Run install.sh to build and install dependencies plus copy the executable to /usr/bin/local.
+Summary of Steps
+The build process is expecting a folder to already exists /usr/local/bin and be executable.
+Run install.sh to build and install dependencies plus copy the executable to /usr/bin/local.
 
 Power Monitoring Permissions
+<TODO> Power monitoring is currently unstable and disabled.  
+The fix described below work for me for a while then stopped working.
+
 By default on Debian you need to have root permissions (sudo) to access the directory
 structure where the power usage information is stored otherwise you will see an error 
 message something like this.
@@ -170,10 +174,10 @@ PC
 
 MAC
     Mac OS Monterey V 12.
-    Processor:  Intel i5 2.6 GHz
+    Processor:  Intel i5 CPU @ 2.6 GHz
     RAM:        8 GB 
     Formula                        Decimal Places          Completion Time
     =========================================================================
-    Gauss Legendre
-    Chudnovsky Single Thread
-    Chudnovsky Multi Thread (CPU )
+    Gauss Legendre                  <TODO>                  <TODO>
+    Chudnovsky Single Thread        <TODO>                  <TODO>
+    Chudnovsky Multi Thread (CPU )  <TODO>                  <TODO>

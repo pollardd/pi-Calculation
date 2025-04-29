@@ -7,6 +7,7 @@
 #include <sstream>
 #include <string>
 #include <cctype>
+#include <chrono>
 
 extern std::atomic<unsigned long> iterations;
 extern std::atomic<unsigned long> iteration_counter;
@@ -214,6 +215,11 @@ void ChudnovskyTermCalculator::chudnovsky_worker(
     const std::vector<std::string>& reference_terms,
     const std::vector<std::string>& reference_sums)
 {
+    using namespace std::chrono;
+
+    // Start a timer for the current thread
+    auto start_time = high_resolution_clock::now();
+ 
     // Create a thread-local calculator (scratchpad)
     ChudnovskyTermCalculator calculator(working_prec, debug_level);
 
@@ -222,7 +228,7 @@ void ChudnovskyTermCalculator::chudnovsky_worker(
     mpfr_init2(local_sum, working_prec +256);
     mpfr_set_zero(local_sum, 1); // positive zero
 
-    if (debug_level >=2)
+    if (debug_level >=1)
     {
        std::lock_guard<std::mutex> lock(console_mutex);
        std::cerr << "[Thread " << thread_id << "] Starting work from " << start_term << " to " << end_term -1 << "\n";
@@ -269,7 +275,7 @@ void ChudnovskyTermCalculator::chudnovsky_worker(
         // Two threads --threads = 2
         // This will verify k values from 8 to 14 in thered id=1 (The second thread)
         // When manually comparing the values I noted that it it matched except the very last decimal place was rounded up.
-        // ChatGPT and I agree that this is no the cause of our pi callculation error. :)
+        // ChatGPT and I agree that this is not the cause of our pi callculation error. :)
  
         //if (thread_id == 1 && debug_level >= 3)
         //{
@@ -305,13 +311,13 @@ void ChudnovskyTermCalculator::chudnovsky_worker(
 
         mpfr_clear(term);
     }
-    if(debug_level >= 2 )
+    if(debug_level >= 1 )
     {
         std::lock_guard<std::mutex> lock(console_mutex);
         std::cerr << "[Thread " << thread_id << "] Finished work normally.\n";
     }
 
-    if (debug_level >= 1)
+    if (debug_level >= 3)
     {
         std::lock_guard<std::mutex> lock(console_mutex);
         std::cerr << "[Thread " << thread_id << "] Local sum = ";
@@ -323,6 +329,16 @@ void ChudnovskyTermCalculator::chudnovsky_worker(
     mpfr_set(shared_results[thread_id], local_sum, MPFR_RNDN);
 
     mpfr_clear(local_sum);
+
+    if(debug_level >= 1)
+    {
+        // Calculate the duration
+        auto end_time = high_resolution_clock::now();
+        auto duration = duration_cast<milliseconds>(end_time - start_time);
+        // Output or store the result
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cout << "Thread " << thread_id << " took " << duration.count() << " ms for terms " << start_term << " to " << end_term << std::endl;
+    }
 }
 
 void ChudnovskyTermCalculator::calculate_chudnovsky_singlethreaded(
