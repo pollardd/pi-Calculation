@@ -1,6 +1,6 @@
 This program calculates Pi to a high number of decimal places using either the Gauss-Legendre or Chudnovsky algorithm (default: Gauss-Legendre), with optional real-time system monitoring. At the time of writing I calculated up to 1 billion decimal places with 15GB of installed RAM however I did not reach any limits.
 
-Features
+## Features
 
     Calculate Pi to millions + of decimal places
     Choose calculation method: Gauss-Legendre (implemented) or Chudnovsky (coming soon)
@@ -9,8 +9,8 @@ Features
     Multi-threaded system monitoring
     Debug output option
 
-Dependencies
-Build Dependencies
+## Dependencies
+### Build Dependencies
 
 The following packages are required to build the program:
     g++ (C++ compiler supporting C++11 or later)
@@ -18,44 +18,44 @@ The following packages are required to build the program:
     libgmp-dev (GNU Multiple Precision Arithmetic Library)
     pthread (typically included by default)
 
-Install on Debian-based systems:
+### Install on Debian-based systems:
     sudo apt update
     sudo apt install g++ libmpfr-dev libgmp-dev
 
-Optional Runtime Dependency
+### Optional Runtime Dependency
     The following package is optional but required if you want CPU temperature monitoring:
     lm-sensors — Used to display CPU temperature in real-time monitoring output.
 
-Install lm-sensors on Debian-based systems:
+### Install lm-sensors on Debian-based systems:
     sudo apt install lm-sensors
     sudo sensors-detect
 
-Note:
-If lm-sensors is not installed or not configured, temperature monitoring will be disabled, but Pi calculation will still run without issue.
-A helpful message will notify you during execution if lm-sensors is missing.
+### Note:
+If lm-sensors is not installed or not configured, temperature monitoring will be disabled, but Pi calculation will still run without issue. A helpful message will notify you during execution if lm-sensors is missing.
 
-Building the Program
-Debian PC
-Use the following command to compile:
+## Building the Program
+### Debian PC
+#### Use the following command to compile:
     g++ -O3 calculate_pi.cpp chudnovsky.cpp -std=c++17 -o calculate_pi -lmpfr -lgmp -lm -pthread -Wall
-Usage
+#### Usage
     calculate_pi <decimal_places> [options]
 
-Options:
-Option	Description
-  -f, --file <filename>        Specify reference Pi file (default ./pi_reference_1M.txt) 
-  -d, --debug <1|2|3>          Set debug level (default: 0)
-  -m, --method <name>          Choose method: 'gauss_legendre' (default) or 'chudnovsky'
-      --threads <count>        Number of threads to use (valid only for Chudnovsky) 1=execute in main thread, default is max -1.
-  -h, --help                   Show this help message
+#### Options:
+
+	Option	Description
+	-f,	--file <filename>	Specify reference Pi file (default ./pi_reference_1M.txt) 
+	-d,	--debug <1|2|3>		Set debug level (default: 0)
+	-m,	--method <name>		Choose method: 'gauss_legendre' (default) or 'chudnovsky'
+	  	--threads <count>	Number of threads to use (valid only for Chudnovsky) 1=execute in main thread, default is max -1.
+	-h,	--help			Show this help message
 
     
-Example:
+### Example:
     time calculate_pi 100000 --method chudnovsky --threads 2  -d 2
     calculate pi to 100,000 decimal places using the chudnovsky formula executing using 2 sub threads with debug level 2 output
     and show total run time at the end.
 
-Runtime Warnings
+## Runtime Warnings
     If the program detects that sensors (from lm-sensors) is missing or not configured, it will display:
     Warning: 'sensors' command not found. CPU temperature monitoring disabled.
     See README.md for instructions to install 'lm-sensors' if desired.
@@ -70,12 +70,12 @@ Runtime Warnings
         (Personaly I'm not sure how you can put a license on pi but here it is)
         The test file included is length 1,000,002 characters. Note the extra two characters are the "3." at the begining, making up 1 billion decimal places.
         
-Notes
-    Memory Consideration:
+## Notes
+    ### Memory Consideration:
     Calculating Pi to millions of digits requires a significant amount of memory.
     Example: For 1 million+ digits, at least 4 GB RAM is recommended.
 
-    CPU Temperature Monitoring:
+    ### CPU Temperature Monitoring:
     Ensure lm-sensors is installed and configured correctly:
      
     sudo apt install lm-sensors
@@ -83,23 +83,23 @@ Notes
 
     For further help, refer to the lm-sensors documentation.
 
-License
+## License
     Do what ever you like but don't delete my name and  call it your own.
 
-Future Improvements
+## Future Improvements
     GPU acceleration 
     Cross-platform compatibility enhancements (Mac/Windows)
     Automatic dependency checker in a setup script or Makefile (mostly complete needs more testing)
 
-Build and Install Notes
+## Building on Debian
 Make sure that install.sh is executable with chmod +x install.sh
 
-Summary of Steps
+### Summary of Steps
 The build process is expecting a folder to already exists /usr/local/bin and be executable.
 Run install.sh to build and install dependencies plus copy the executable to /usr/bin/local.
 
-Power Monitoring Permissions
-<TODO> Power monitoring is currently unstable and disabled.  
+### Power Monitoring Permissions
+TODO Power monitoring is currently unstable and disabled.  
 The fix described below work for me for a while then stopped working.
 
 By default on Debian you need to have root permissions (sudo) to access the directory
@@ -122,7 +122,7 @@ f /sys/class/powercap/intel-rapl:0:2/energy_uj 0644 root root -
 sudo systemd-tmpfiles --create /etc/tmpfiles.d/intel-rapl.conf
 
 
-Building on Mac
+## Building on Mac
 This is my experience compiling and running on a Mac with the follwoing spec.
 
 OS:		MacOs Monterey
@@ -133,16 +133,19 @@ RAM:		8GB (1600MHz DDR3)
 ChatGPT reports the follwoing requirements for the build.
 
 Install Xcode Command line tools
+
 	xcode-select --install
 
 Install Homebrew
+
 	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 Install Dependencies (using homebrew)
 
-	brew install mpfr gmp
+ 	brew install mpfr gmp
 
 Build the program
+
 	clang++ -std=c++17 -O2 -Wall calculate_pi.cpp chudnovsky.cpp -o calculate_pi -lmpfr -lgmp -lpthread
 
 TODO Update the Makefile and or install.sh
@@ -158,8 +161,9 @@ The install.sh script will attempt to detect your operating system and install r
 macOS on Apple Silicon (M1/M2) is theoretically supported but has not yet been tested.
 Other Linux distributions (e.g., Arch, Fedora, openSUSE) are not currently supported by this script. You may need to install dependencies manually.
 
-Benchmarks
-PC
+## Benchmarks
+### PC
+
     Debian:     Bookwork V 12
     Processor:  Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz 
     RAM:        32 GB
@@ -172,10 +176,12 @@ PC
     Chudnovsky Multi Thread (CPU 7)  1,000,000          33m  3.231s
     Chudnovsky Multi Thread (GPU ?)     <TODO>               <TODO>
 
-MAC
-    Mac OS Monterey V 12.
+### MAC
+
+    Mac: OS Monterey V 12.
     Processor:  Intel i5 CPU @ 2.6 GHz
-    RAM:        8 GB 
+    RAM:        8 GB
+    
     Formula                        Decimal Places          Completion Time
     =========================================================================
     Gauss Legendre                  <TODO>                  <TODO>
