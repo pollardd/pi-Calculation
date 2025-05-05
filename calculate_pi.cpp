@@ -26,7 +26,7 @@ using namespace std;
 namespace fs = std::filesystem;
 
 // Global Variables
-std::string version = "1.0.0";
+std::string version = "1.1.0";
 std::string calculation_method = "gauss_legendre";  // Default calculation method
 std::atomic <bool> keep_monitoring(true);           // Shared flag to stop monitoring thread
 std::atomic <long long> iteration_counter(0);       // Global counter
@@ -548,7 +548,7 @@ void monitor_system()
         }
 
         // Show CPU Core Temperatures
-        if (debug_level >= 2)
+        if (debug_level >= 1)
         {
             std::cout << "--- Checking CPU temperature ---\n";
             std::system("sensors | grep 'Core' | awk '{print $1, $2, $3}'");

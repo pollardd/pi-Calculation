@@ -1,9 +1,12 @@
-This program calculates Pi to a high number of decimal places using either the Gauss-Legendre or Chudnovsky algorithm (default: Gauss-Legendre), with optional real-time system monitoring. At the time of writing I calculated up to 1 billion decimal places with 15GB of installed RAM however I did not reach any limits.
+Very Large Pi Calculations 
+Version 1.1
+
+This program calculates Pi to an arbitrary number of decimal places using either the Gauss-Legendre or Chudnovsky algorithm (default: Gauss-Legendre), with optional real-time system monitoring. At the time of writing I calculated up to 1 billion decimal places with 15GB of installed RAM however I did not reach any limits.
 
 Features
 
-    Calculate Pi to millions + of decimal places
-    Choose calculation method: Gauss-Legendre (implemented) or Chudnovsky (coming soon)
+    Calculate Pi to billions + of decimal places
+    Choose calculation method: Gauss-Legendre or Chudnovsky
     Real-time CPU usage, memory usage, and CPU temperature monitoring
     Verification against known Pi reference file
     Multi-threaded system monitoring
@@ -39,14 +42,15 @@ Debian PC
 Use the following command to compile:
     g++ -O3 calculate_pi.cpp chudnovsky.cpp -std=c++17 -o calculate_pi -lmpfr -lgmp -lm -pthread -Wall
 Usage
-    calculate_pi <decimal_places> [options]
+    calculate_pi &lt;decimal_places&gt; [options]
 
 Options:
 Option	Description
-  -f, --file <filename>        Specify reference Pi file (default ./pi_reference_1M.txt) 
-  -d, --debug <1|2|3>          Set debug level (default: 0)
-  -m, --method <name>          Choose method: 'gauss_legendre' (default) or 'chudnovsky'
-      --threads <count>        Number of threads to use (valid only for Chudnovsky) 1=execute in main thread, default is max -1.
+  -f, --file &lt;filename&gt;        Specify reference Pi file (default ./pi_reference_1M.txt) 
+  -d, --debug &lt;1|2|3&gt;          Set debug level (default: 0)
+  -m, --method &lt;name&gt;          Choose method: 'gauss_legendre' (default) or 'chudnovsky'
+      --threads &lt;count&gt;        Number of threads to use (valid only for chudnovsky) 1=execute in main thread, default is max -1.
+      --dynamic                Share the calculations in chunks evenly between cpu cores. (valid only for chudnovsky) 
   -h, --help                   Show this help message
 
     
@@ -60,20 +64,20 @@ Runtime Warnings
     Warning: 'sensors' command not found. CPU temperature monitoring disabled.
     See README.md for instructions to install 'lm-sensors' if desired.
 
-    The program uses a know good value for pi to decide on success or failure of the calculation. This is specified with the -f flag.
+    The program uses a known good value for pi to decide on success or failure of the calculation. This is specified with the -f flag.
     If not specified the program will default to ./pi_reference_1M.txt. (1 million decimal places)
-    A file containing pi calculated to 1 billion places using the "Chudnovsky Formula" can be downloaded from this web site. There are much larger files there :)
+    A file containing pi calculated to 1 billion or 50 billion places using the "Chudnovsky Formula" can be downloaded from this web site. 
     https://ehfd.github.io/computing/calculation-results-for-pi-up-to-50-000-000-000-digits/
         Note: The digits are released under an Attribution-NonCommercial-NoDerivatives 4.0 International License, which prohibits 
         commercial use and distribution of remixed, transformed, or built upon versions without consent. Proper attribution and 
         indication of changes are required even if it is not a prohibited use case.
         (Personaly I'm not sure how you can put a license on pi but here it is)
-        The test file included is length 1,000,002 characters. Note the extra two characters are the "3." at the begining, making up 1 billion decimal places.
+        The test file included is length 1,000,002 characters. Note the extra two characters are the "3." at the begining, making up 1 million decimal places.
         
 Notes
     Memory Consideration:
     Calculating Pi to millions of digits requires a significant amount of memory.
-    Example: For 1 million+ digits, at least 4 GB RAM is recommended.
+    Example: For 1 million+ digits, at least 8 GB RAM is recommended although not tested.
 
     CPU Temperature Monitoring:
     Ensure lm-sensors is installed and configured correctly:
@@ -84,7 +88,7 @@ Notes
     For further help, refer to the lm-sensors documentation.
 
 License
-    Do what ever you like but don't delete my name and  call it your own.
+    Do what ever you like but don't delete my name and call it your own.
 
 Future Improvements
     GPU acceleration 
@@ -99,27 +103,27 @@ The build process is expecting a folder to already exists /usr/local/bin and be 
 Run install.sh to build and install dependencies plus copy the executable to /usr/bin/local.
 
 Power Monitoring Permissions
-<TODO> Power monitoring is currently unstable and disabled.  
-The fix described below work for me for a while then stopped working.
+&lt;TODO&gt; Power monitoring is currently unstable and disabled.  
+The fix described below worked for me for a while then stopped working.
 
-By default on Debian you need to have root permissions (sudo) to access the directory
-structure where the power usage information is stored otherwise you will see an error 
-message something like this.
-Error: Unable to open energy file at /sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj
-The fix is a little obscure and ChatGPT described it as "A bit of an unsupported hack".
-It works, so here it is so you can decide it you use it or not.
+    By default on Debian you need to have root permissions (sudo) to access the directory
+    structure where the power usage information is stored otherwise you will see an error 
+    message something like this.
+    Error: Unable to open energy file at /sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj
+    The fix is a little obscure and ChatGPT described it as "A bit of an unsupported hack".
+    It works, so here it is so you can decide it you use it or not.
 
-1. Create a config file
-sudo nano /etc/tmpfiles.d/intel-rapl.conf
+    1. Create a config file
+    sudo nano /etc/tmpfiles.d/intel-rapl.conf
 
-2. Add these lines to make the energy_uj files world-readable.
-f /sys/class/powercap/intel-rapl:0/energy_uj 0644 root root -
-f /sys/class/powercap/intel-rapl:0:0/energy_uj 0644 root root -
-f /sys/class/powercap/intel-rapl:0:1/energy_uj 0644 root root -
-f /sys/class/powercap/intel-rapl:0:2/energy_uj 0644 root root -
+    2. Add these lines to make the energy_uj files world-readable.
+    f /sys/class/powercap/intel-rapl:0/energy_uj 0644 root root -
+    f /sys/class/powercap/intel-rapl:0:0/energy_uj 0644 root root -
+    f /sys/class/powercap/intel-rapl:0:1/energy_uj 0644 root root -
+    f /sys/class/powercap/intel-rapl:0:2/energy_uj 0644 root root -
 
-3. Immediately apply the new config (or simply reboot) 
-sudo systemd-tmpfiles --create /etc/tmpfiles.d/intel-rapl.conf
+    3. Immediately apply the new config (or simply reboot) 
+    sudo systemd-tmpfiles --create /etc/tmpfiles.d/intel-rapl.conf
 
 
 Building on Mac
@@ -171,8 +175,8 @@ PC
     Chudnovsky Single Thread                  100,000                   36.012s
     Chudnovsky Multi Thread (CPU 7)           300,000                2m 12.015s
     Chudnovsky Multi Thread (CPU 7)         1,000,000               33m  3.231s
-    Chudnovsky Dynamic Thread (CPU 7)       1,000,000
-    Chudnovsky Multi Thread (GPU ?)     <TODO>               <TODO>
+    Chudnovsky Dynamic Thread (CPU 7)       1,000,000               26m 49.996s
+    Chudnovsky Multi Thread (GPU ?)     &lt;TODO&gt;               &lt;TODO&gt;
 
 MAC
     Mac OS Monterey V 12.
@@ -180,6 +184,6 @@ MAC
     RAM:        8 GB 
     Formula                        Decimal Places          Completion Time
     =========================================================================
-    Gauss Legendre                  <TODO>                  <TODO>
-    Chudnovsky Single Thread        <TODO>                  <TODO>
-    Chudnovsky Multi Thread (CPU )  <TODO>                  <TODO>
+    Gauss Legendre                  &lt;TODO&gt;                  &lt;TODO&gt;
+    Chudnovsky Single Thread        &lt;TODO&gt;                  &lt;TODO&gt;
+    Chudnovsky Multi Thread (CPU )  &lt;TODO&gt;                  &lt;TODO&gt;

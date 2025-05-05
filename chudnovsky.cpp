@@ -30,7 +30,7 @@ extern std::atomic<unsigned long> iteration_counter;
 // Global chunk management variables
 std::atomic<int> current_k(0);
 int max_k = 0;
-int chunk_size = 1; // Default, can be overwritten
+int chunk_size = 100; // Default, can be overwritten
 
 struct ChudnovskyScratchpad {
     mpfr_t term, num, den, k_mp, k3_mp;
@@ -305,7 +305,7 @@ void ChudnovskyTermCalculator::chudnovsky_worker(
     mpfr_init2(local_sum, working_prec +256);
     mpfr_set_zero(local_sum, 1); // positive zero
 
-    if (debug_level >=1)
+    if (debug_level >= 1)
     {
        std::lock_guard<std::mutex> lock(console_mutex);
        std::cerr << "[Thread " << thread_id << "] Starting work from " << start_term << " to " << end_term -1 << "\n";
@@ -455,6 +455,12 @@ void chudnovsky_worker_dynamic(
         {
             std::lock_guard<std::mutex> lock(console_mutex);
             std::cerr << "[chudnovsky_worker_dynamic] Thread " << id << " processing k from " << start_k << " to " << (end_k - 1) << "\n";
+        }
+
+        if (debug_level >= 1)
+        {
+           std::lock_guard<std::mutex> lock(console_mutex);
+           std::cerr << "[Thread " << id << "] Starting work from " << start_k << " to " << end_k -1 << "\n";
         }
 
         for (int k = start_k; k < end_k; ++k) 
