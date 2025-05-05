@@ -8,13 +8,37 @@
 #include <string>
 #include <cctype>
 #include <chrono>
+#include <mutex>
+#include <thread>
+#include <vector>
+//#include <iostream>
+#include <mpfr.h>
+//#include "chudnovsky.hpp"
+
+//mpfr_prec_t working_prec = 0;
+
+
+
+extern std::atomic<bool> stop_requested;
+extern std::atomic<int> current_k;
+extern int max_k;
+//extern int chunk_size;
 
 extern std::atomic<unsigned long> iterations;
 extern std::atomic<unsigned long> iteration_counter;
 
+// Global chunk management variables
+std::atomic<int> current_k(0);
+int max_k = 0;
+int chunk_size = 1; // Default, can be overwritten
+
 struct ChudnovskyScratchpad {
     mpfr_t term, num, den, k_mp, k3_mp;
     mpz_t fact_k, fact_3k, fact_6k, pow_640320;
+
+    // temps for numerator/denominator construction
+    mpz_t tmp1, tmp2, tmp3, tmp4, tmp5;
+
     unsigned long last_k;
 
     ChudnovskyScratchpad(mpfr_prec_t working_prec) {
@@ -24,7 +48,11 @@ struct ChudnovskyScratchpad {
         mpfr_init2(k_mp, working_prec);
         mpfr_init2(k3_mp, working_prec);
 
-        mpz_inits(fact_k, fact_3k, fact_6k, pow_640320, nullptr);
+        //mpz_inits(fact_k, fact_3k, fact_6k, pow_640320, nullptr);
+        mpz_inits(fact_k, fact_3k, fact_6k, pow_640320,
+            tmp1, tmp2, tmp3, tmp4, tmp5,
+            nullptr);
+
         last_k = 0;
         mpz_fac_ui(fact_k, 0);
         mpz_fac_ui(fact_3k, 0);
@@ -33,9 +61,46 @@ struct ChudnovskyScratchpad {
     }
     ~ChudnovskyScratchpad() {
         mpfr_clears(term, num, den, k_mp, k3_mp, (mpfr_ptr) 0);
-        mpz_clears(fact_k, fact_3k, fact_6k, pow_640320, nullptr);
+        mpz_clears(fact_k, fact_3k, fact_6k, pow_640320,
+            tmp1, tmp2, tmp3, tmp4, tmp5,
+            nullptr);
     }
 };
+
+// Chudnovsky Term Calucalation for Dynamic k distribution
+void compute_chudnovsky_term(mpfr_t& term, long k, ChudnovskyScratchpad& scratch) {
+    // Compute factorials
+    mpz_fac_ui(scratch.fact_k, k);           // k!
+    mpz_fac_ui(scratch.tmp1, 6 * k);         // (6k)!
+    mpz_fac_ui(scratch.tmp2, 3 * k);         // (3k)!
+    mpz_pow_ui(scratch.tmp3, scratch.fact_k, 3); // (k!)^3
+
+    // Denominator: (3k)! * (k!)^3 * (640320)^(3k)
+    mpz_mul(scratch.tmp3, scratch.tmp3, scratch.tmp2);
+    mpz_ui_pow_ui(scratch.tmp4, 640320, 3 * k);
+    mpz_mul(scratch.tmp4, scratch.tmp4, scratch.tmp3); // full denominator
+
+    // Numerator: (6k)! * (545140134 * k + 13591409)
+    mpz_set_ui(scratch.tmp5, k); // a new scratch value for k
+    mpz_mul_ui(scratch.tmp2, scratch.tmp5, 545140134); // 545140134 * k
+    mpz_add_ui(scratch.tmp2, scratch.tmp2, 13591409);  // + 13591409
+    mpz_mul(scratch.tmp2, scratch.tmp1, scratch.tmp2); // (6k)! * (...)
+
+    if (k % 2 != 0) {
+        mpz_neg(scratch.tmp2, scratch.tmp2); // Alternate sign
+    }
+
+    // Convert to MPFR and divide
+    mpfr_set_z(scratch.num, scratch.tmp2, MPFR_RNDN);
+    mpfr_set_z(scratch.den, scratch.tmp4, MPFR_RNDN);
+    mpfr_div(term, scratch.num, scratch.den, MPFR_RNDN);
+
+    if (debug_level >= 3) {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        mpfr_printf("[compute_chudnovsky_term] Term k=%ld: %.Re\n", k, term);
+    }
+}
+
 
 ChudnovskyTermCalculator::ChudnovskyTermCalculator(mpfr_prec_t precision, int debug_level)
     : prec(precision), debug(debug_level) {
@@ -52,6 +117,18 @@ unsigned long ChudnovskyTermCalculator::estimate_required_k(long long decimal_pl
 {
     constexpr double DIGITS_PER_TERM = 14.1816474627255;
     return static_cast<unsigned long>(decimal_places / DIGITS_PER_TERM) + 1;
+}
+
+void set_dynamic_chunks(int chunk) {
+    chunk_size = chunk;
+    current_k = 0;
+    // Approximate how many terms based on decimal places
+    max_k = static_cast<int>((decimal_places / 14.181647462) + 10); 
+    std::lock_guard<std::mutex> lock(console_mutex);
+    if (debug_level >=2)
+    {
+        std::cerr << "[set_dynamic_chunks] max_k = " << max_k << "\n";
+    }
 }
 
 void ChudnovskyTermCalculator::compare_value(
@@ -340,6 +417,172 @@ void ChudnovskyTermCalculator::chudnovsky_worker(
         std::cout << "Thread " << thread_id << " took " << duration.count() << " ms for terms " << start_term << " to " << end_term << std::endl;
     }
 }
+
+
+void chudnovsky_worker_dynamic(
+    int id, 
+    mpfr_t& local_sum, 
+    const std::vector<std::string>& reference_terms,
+    const std::vector<std::string>& reference_sums)
+{
+    mpfr_t term;
+    mpfr_init2(term, working_prec);
+    mpfr_set_ui(term, 0, MPFR_RNDN); 
+    mpfr_set_ui(local_sum, 0, MPFR_RNDN);
+
+    ChudnovskyTermCalculator calculator(working_prec, debug_level);
+
+    ChudnovskyScratchpad scratch(working_prec);
+
+        while (!stop_requested) 
+    {
+        // int start_k = current_k.fetch_add(chunk_size);
+        // if (start_k > max_k) break;
+        // int end_k = std::min(start_k + chunk_size, max_k + 1);
+
+        int start_k = current_k.fetch_add(chunk_size);
+        int end_k = std::min(start_k + chunk_size, max_k + 1);
+        if (start_k >= end_k) 
+        {
+            if (debug_level >= 2) 
+            {
+                std::lock_guard<std::mutex> lock(console_mutex);
+                std::cerr << "[chudnovsky_worker_dynamic] Thread " << id << " skipped: start_k=" << start_k << " >= end_k=" << end_k << "\n";
+            }
+            break;
+        }
+        if (debug_level >= 2) 
+        {
+            std::lock_guard<std::mutex> lock(console_mutex);
+            std::cerr << "[chudnovsky_worker_dynamic] Thread " << id << " processing k from " << start_k << " to " << (end_k - 1) << "\n";
+        }
+
+        for (int k = start_k; k < end_k; ++k) 
+        {
+            compute_chudnovsky_term(term, k, scratch);
+            if (debug_level >= 2)
+            {
+                calculator.compare_value("term", term, reference_terms, k, decimal_places);
+            }
+            mpfr_add(local_sum, local_sum, term, MPFR_RNDN);
+
+            // Add one to the iteration counter for the monitoring thread.
+            iteration_counter.fetch_add(1, std::memory_order_relaxed);
+        }
+    }
+
+    if (debug_level >= 2) 
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cerr << "[chudnovsky_worker_dynamic] Thread " << id << " storing result into partial_sums[" << id << "]\n";
+        std::cerr << "[chudnovsky_worker_dynamic()] local_sum=";
+        mpfr_out_str(stderr, 10, 80, local_sum, MPFR_RNDN);
+        std::cout << "\n";
+    }
+
+    mpfr_clear(term);
+}
+
+void calculate_pi_chudnovsky_dynamic(
+    int thread_count,
+    mpfr_t& pi_result,
+    const std::vector<std::string>& reference_terms,
+    const std::vector<std::string>& reference_sums)
+
+{
+    if (debug_level >= 2)
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cout << "[calculate_pi_chudnovsky_dynamic] working_prec = " << working_prec << " bits\n";
+        std::cout << "[calculate_pi_chudnovsky_dynamic] chunk_size = " << chunk_size << "\n";
+    }
+
+    // Storage for iterations used in the monitoring thread.
+    iterations.store(max_k + 1, std::memory_order_relaxed);
+    iteration_counter.store(0, std::memory_order_relaxed);
+
+    // Allocate C-style array of mpfr_t
+    mpfr_t* partial_sums = new mpfr_t[thread_count];
+
+    for (int i = 0; i < thread_count; ++i)
+    {
+        mpfr_init2(partial_sums[i], working_prec);
+        mpfr_set_zero(partial_sums[i], 1); // Initialize to zero
+    }
+    std::vector<std::thread> threads;
+    for (int i = 0; i < thread_count; ++i)
+    {
+        threads.emplace_back(
+            chudnovsky_worker_dynamic, 
+            i, 
+            std::ref(partial_sums[i]), 
+            std::cref(reference_terms), 
+            std::cref(reference_sums)
+        ); 
+    }
+
+    // Wait for threads to finish
+    for (auto& t : threads)
+        t.join();
+
+    // Combine partial results
+    mpfr_t sum;
+    mpfr_init2(sum, working_prec);
+    mpfr_set_ui(sum, 0, MPFR_RNDN);
+
+    for (int i = 0; i < thread_count; ++i) 
+    {
+        mpfr_add(sum, sum, partial_sums[i], MPFR_RNDN);
+
+        // Optional: inspect partial_sums[i] here
+        if (debug_level >= 2)
+        {
+            std::lock_guard<std::mutex> lock(console_mutex);
+            std::cerr << "[calculate_pi_chudnovsky_dynamic] sum=";
+            mpfr_out_str(stderr, 10, 80, sum, MPFR_RNDN);
+            std::cerr << "\n";
+
+            std::cerr << "[calculate_pi_chudnovsky_dynamic] partial_sum[" << i <<"]=";
+            mpfr_out_str(stderr, 10, 80, partial_sums[i], MPFR_RNDN);
+            std::cerr << "\n";
+        }
+        
+        // Optional: inspect sum after addition
+    }
+
+    if (debug_level >= 2)
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cerr << "[calculate_pi_chudnovsky_dynamic] Final sum=";
+        mpfr_out_str(stderr, 10, 80, sum, MPFR_RNDN);
+        std::cerr << "\n";
+    }
+
+    mpfr_t sqrt_c, factor;
+    mpfr_init2(sqrt_c, working_prec);
+    mpfr_init2(factor, working_prec);
+
+    mpfr_sqrt_ui(sqrt_c, 10005, MPFR_RNDN);
+    mpfr_mul_ui(factor, sqrt_c, 426880, MPFR_RNDN);
+    mpfr_div(pi_result, factor, sum, MPFR_RNDN); // <-- write into caller's mpfr_t
+
+    mpfr_clear(sqrt_c);
+    mpfr_clear(factor);
+
+    if (debug_level >= 3)
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        mpfr_printf("[Result] Computed pi: %.*Rf\n", decimal_places, pi_result);
+    }
+
+    // Cleanup
+    for (int i = 0; i < thread_count; ++i) 
+    {
+             mpfr_clear(partial_sums[i]);
+    }
+    delete[] partial_sums;
+}
+
 
 void ChudnovskyTermCalculator::calculate_chudnovsky_singlethreaded(
     mpfr_t pi_approx,

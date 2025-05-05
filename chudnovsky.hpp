@@ -38,8 +38,10 @@ public:
 
     //void compare_value(const std::string& label, const mpfr_t value, const std::vector<std::string>& reference_values, int k, mpfr_prec_t working_prec);
     void compare_value(const std::string& label, const mpfr_t value, const std::vector<std::string>& reference_values, int k, long long decimal_places);
-
     void compare_strings_verbose(const std::string& label, const std::string& s1, const std::string& s2);
+    void compute_chudnovsky_term(mpfr_t& term, long k, ChudnovskyScratchpad& scratch);
+
+
 
 private:
     mpfr_prec_t prec;
@@ -51,5 +53,42 @@ private:
     mpfr_t power_640320;
     mpfr_t multiplier, num, den;
 };
+
+// ===== standalone helper function declarations =====
+void set_dynamic_chunks(int user_chunk_request);
+
+//void calculate_pi_chudnovsky_dynamic(int thread_count, mpfr_prec_t working_prec, mpfr_t& pi_result);
+//void calculate_pi_chudnovsky_dynamic(int thread_count, mpfr_t& pi_result);
+
+//void calculate_pi_chudnovsky_dynamic(int thread_count, mpfr_t& pi_result,
+//    const std::vector<mpfr_t>& reference_terms,
+//    const std::vector<mpfr_t>& reference_sums);
+
+void calculate_pi_chudnovsky_dynamic(
+    int thread_count, 
+    mpfr_t& pi_result,
+    const std::vector<std::string>& reference_terms,
+    const std::vector<std::string>& reference_sums);
+    
+
+void calculate_pi_chudnovsky(int thread_count);
+
+//void chudnovsky_worker_dynamic(int id, mpfr_t& partial_sum, mpfr_prec_t working_prec);
+//void chudnovsky_worker_dynamic(int id, mpfr_t& local_sum, mpfr_prec_t working_prec);
+//void chudnovsky_worker_dynamic(int id, mpfr_t local_sum, mpfr_prec_t working_prec);
+//void chudnovsky_worker_dynamic(int id, mpfr_t& local_sum, mpfr_prec_t working_prec);
+//void chudnovsky_worker_dynamic(int id, mpfr_t& local_sum);
+
+//void chudnovsky_worker_dynamic(
+//    int id, 
+//    mpfr_t& local_sum, 
+//    const std::vector<mpfr_t>& reference_terms,
+//    const std::vector<mpfr_t>& reference_sums);
+
+void chudnovsky_worker_dynamic(
+    int id, 
+    mpfr_t& local_sum, 
+    const std::vector<std::string>& reference_terms,
+    const std::vector<std::string>& reference_sums);
 
 #endif

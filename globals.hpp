@@ -9,4 +9,5 @@ extern int debug_level;
 extern bool use_multithreading;
 extern long long decimal_places;extern std::atomic<bool> stop_requested;
 extern std::mutex console_mutex;
-
+extern int chunk_size;
+extern mpfr_prec_t working_prec;

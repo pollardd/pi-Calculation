@@ -35,12 +35,14 @@ std::atomic <long long> iterations(0);              // Ensure updates are visibl
 std::string reference_filename = "pi_reference_1M.txt"; // Default
 std::atomic <bool> stop_requested(false);
 std::mutex console_mutex;                           // Used to limit console output to a single thread at a time.
+bool use_dynamic;                                   // Flag to indicate if chudnovsky dynamic thread allocation is used.
 
 // External variables defined in globals.hpp
 int debug_level = 0;                                // Debug level passed in from command line
 bool use_multithreading = false;
 long long decimal_places = 1;
 int thread_count = 0;                               // Default is 0 = auto-detect based on CPU cores
+mpfr_prec_t working_prec = 0;
 
 struct RaplDomain
 {
@@ -64,7 +66,8 @@ void signal_handler(int signal) {
 
 
 // Caculate the working precision for the chudnovsky algorithm to use.
-mpfr_prec_t get_chudnovsky_precision(int decimal_places, int buffer = 20000) {
+mpfr_prec_t get_chudnovsky_precision(int decimal_places, int buffer = 20000) 
+{
     return static_cast<mpfr_prec_t>(ceil(decimal_places * 3.322 + buffer));
 }
 
@@ -399,20 +402,18 @@ void calculate_pi_multithreaded(
     iteration_counter.store(0, std::memory_order_relaxed);
 
     // Precision estimate
-    // DJP mpfr_prec_t precision = decimal_places * 3.5;
-    // TODO change precision to working_prec
     //  mpfr_prec_t working_prec = get_chudnovsky_precision(decimal_places);
-    mpfr_prec_t precision = get_chudnovsky_precision(decimal_places);
+    working_prec = get_chudnovsky_precision(decimal_places);
     if (debug_level >=2)
     {
-        std::cout << "working precission= " << precision << " \n";
+        std::cout << "working precission= " << working_prec << " \n";
     }
 
     // Allocate space for thread results
     mpfr_t* shared_results = new mpfr_t[thread_count];
     for (int i = 0; i < thread_count; ++i)
     {
-        mpfr_init2(shared_results[i], precision);
+        mpfr_init2(shared_results[i], working_prec);
         mpfr_set_zero(shared_results[i], 1); // Positive zero
     }
 
@@ -440,7 +441,7 @@ void calculate_pi_multithreaded(
             std::cout << "[Thread " << i << "] k from " << start << " to " << (end - 1) << "\n";
         }
 
-        threads.emplace_back(ChudnovskyTermCalculator::chudnovsky_worker, i, start, end, shared_results, precision, debug_level, reference_terms, reference_sums);
+        threads.emplace_back(ChudnovskyTermCalculator::chudnovsky_worker, i, start, end, shared_results, working_prec, debug_level, reference_terms, reference_sums);
         current_term = end;
     }
 
@@ -469,7 +470,7 @@ void calculate_pi_multithreaded(
 
 //  Sum results
     mpfr_t total_sum;
-    mpfr_init2(total_sum, precision);
+    mpfr_init2(total_sum, working_prec);
     mpfr_set_zero(total_sum, 1);
 
     for (int i = 0; i < thread_count; ++i)
@@ -496,8 +497,8 @@ void calculate_pi_multithreaded(
 
     // === CHUDNOVSKY CONSTANT C = 426880 * sqrt(10005) ===
     mpfr_t C, sqrt_10005;
-    mpfr_init2(C, precision);
-    mpfr_init2(sqrt_10005, precision);
+    mpfr_init2(C, working_prec);
+    mpfr_init2(sqrt_10005, working_prec);
 
     mpfr_sqrt_ui(sqrt_10005, 10005, MPFR_RNDN);
     mpfr_mul_ui(C, sqrt_10005, 426880, MPFR_RNDN);
@@ -554,7 +555,7 @@ void monitor_system()
         }
 
         // Show Available Free Memory
-        if (debug_level >=1)
+        if (debug_level >= 1)
         {
             long free_mem_kb = get_free_memory_kb();
             if (free_mem_kb != -1)
@@ -610,6 +611,7 @@ bool parse_command_line(int argc, char* argv[])
     bool decimal_places_set = false;
     int user_thread_request = -1;
 
+
     for (int i = 1; i < argc; ++i)
     {
         std::string arg = argv[i];
@@ -624,7 +626,8 @@ bool parse_command_line(int argc, char* argv[])
                       << "  -d, --debug <1|2|3>          Set debug level (default: 0)\n"
                       << "  -m, --method <name>          Choose method: 'gauss_legendre' (default), 'chudnovsky'\n"
                       << "      --threads <count>        Number of threads to use (valid only for Chudnovsky) default is max -1\n"
-                      << "  -h, --help                   Show this help message\n";
+                      << "  -h, --help                   Show this help message\n"
+                      << "      --dynamic                Use dynamic work allocation with Chudnovsky multi threaded\n";
             return false; // Return false to prevent program from continuing
         }
 
@@ -707,6 +710,11 @@ bool parse_command_line(int argc, char* argv[])
             }
         }
 
+        else if (arg == "--dynamic") 
+        {
+            use_dynamic = true;
+        }
+
         // Unrecognized switch
         else if (arg[0] == '-')
         {
@@ -770,7 +778,11 @@ bool parse_command_line(int argc, char* argv[])
             std::cerr << "[Info] Using " << thread_count << " threads by default (available CPUs - 1)\n";
         }
     }
-
+    else
+    {
+        std::cerr << "[Error] Unsupported method: " << calculation_method << "\n";
+        return 1;
+    }
     return true;
 }
 
@@ -897,7 +909,7 @@ void verify_pi_from_file(const std::string& computed_pi_str)
     // Truncate the reference Pi to the same length
     std::string reference_pi_trimmed = reference_pi_str.substr(0, decimal_places + 2);
 
-    if (debug_level >= 3)
+    if (debug_level >= 2)
     {
         std::cout << "Reference Pi: " << reference_pi_trimmed << std::endl;
         std::cout << "Computed Pi:  " << computed_pi_trimmed << std::endl;
@@ -943,10 +955,6 @@ std::string write_computed_pi_to_file(const mpfr_t& pi_approx)
 void calculate_gauss_legendre_algorithm(mpfr_t pi_approx)
 {
     iterations.store(log2(decimal_places) + 2, std::memory_order_relaxed);
-
-    long long precision = static_cast<long long>(decimal_places + 5) * 4;
-
-    mpfr_set_default_prec(precision);  // Set function precision
 
     mpfr_t a, b, t, p, a_next, b_next, t_next, p_next, temp1, temp2;
     mpfr_inits(a, b, t, p, a_next, b_next, t_next, p_next, temp1, temp2, (mpfr_ptr) 0);
@@ -1020,7 +1028,6 @@ void mpfr_factorial(mpfr_t result, unsigned long k)
     mpz_clear(fac);
 }
 
-// void calculate_chudnovsky_algorithm(mpfr_t pi_approx)
 void calculate_chudnovsky_algorithm(
     mpfr_t pi_approx,
     const std::vector<std::string>& reference_terms,
@@ -1028,14 +1035,15 @@ void calculate_chudnovsky_algorithm(
 {
 
     // Compute working precision in bits
-    mpfr_prec_t working_prec = get_chudnovsky_precision(decimal_places);
+    working_prec = get_chudnovsky_precision(decimal_places);
     if (debug_level >= 2)
     {
         printf("Working precision: %ld bits\n", working_prec);
     }
 
+    // DJP Each method now sets it's own default precision
     // Set global MPFR default precision as a safety net
-    mpfr_set_default_prec(working_prec);
+    //mpfr_set_default_prec(working_prec);
 
     // Call the single-threaded calculation function
     ChudnovskyTermCalculator calculator(working_prec, debug_level);
@@ -1049,21 +1057,6 @@ int main(int argc, char* argv[])
     if (!parse_command_line(argc, argv))
     {
         return 1;  // Exit if parsing failed
-    }
-
-    // Validate thread count request from command line.
-    // DJP max_threads was unsigned int.  -Wall reported different signedness comparrison.
-    int max_threads = std::max(1u, std::thread::hardware_concurrency());
-
-    if (calculation_method == "chudnovsky")
-    {
-        if (thread_count <= 0 || thread_count > max_threads)
-        {
-            std::cerr << "Warning: Requested " << thread_count << " threads, but only "
-                  << (max_threads + 1) << " available.\n";
-            thread_count = std::max(1, max_threads);  // adjust
-            std::cerr << "Using " << thread_count << " threads instead.\n";
-        }
     }
 
     // Reference data used while debugging.
@@ -1081,25 +1074,62 @@ int main(int argc, char* argv[])
 
     if (debug_level >= 1)
     {
-        std::cout << "Calculating pi to " << decimal_places << " decimal places.\n";
+        std::cout << "[Main] Calculating pi to " << decimal_places << " decimal places.\n";
     }
 
-    long long precision = static_cast<long long>(decimal_places + 5) * 4;
-    mpfr_set_default_prec(precision);
     mpfr_t pi_approx;
-    mpfr_init2(pi_approx, precision);
 
+    // ******************* Start Gauss Legendre   *******************
     if (calculation_method == "gauss_legendre")
     {
         std::cerr << "[Main] Using Single Threaded Gauss Legendre Algorithm \n";
+        //<TODO> Consider changing precision to gl_precision
+        long long precision = static_cast<long long>(decimal_places + 5) * 4;
+        mpfr_set_default_prec(precision);  // Set function precision
+        mpfr_init2(pi_approx, precision);
         calculate_gauss_legendre_algorithm(pi_approx);
     }
+
+    // ******************* Start Chudnovsky   *******************
     else if (calculation_method == "chudnovsky")
     {
+
+        // Compute chudnovsky default working precision in bits
+        working_prec = get_chudnovsky_precision(decimal_places);
+        mpfr_set_default_prec(working_prec);
+        mpfr_init2(pi_approx, working_prec);
+
+        if (debug_level >= 2)
+        {
+            std::cout << "[Main] MPFR default chudnovsky precision set to " << working_prec << " bits.\n";
+        }
+        
+        // Validate thread count request from command line.
+        int max_threads = std::max(1u, std::thread::hardware_concurrency());
+
+        if (thread_count <= 0 || thread_count > max_threads)
+        {
+            std::cerr << "Warning: Requested " << thread_count << " threads, but only "
+                  << (max_threads + 1) << " available.\n";
+            thread_count = std::max(1, max_threads);  // adjust
+            std::cerr << "Using " << thread_count << " threads instead.\n";
+        }
+
         if (thread_count > 1)
         {
-            std::cerr << "[Main] Using multithreaded Chudnovsky Algorithm \n";
-            calculate_pi_multithreaded(ChudnovskyTermCalculator::estimate_required_k(decimal_places), pi_approx, reference_terms,reference_sums);
+            if (use_dynamic)
+            {
+                std::cout << "[Main] Using dynamic multithreaded Chudnovsky Algorithm\n";
+                set_dynamic_chunks(chunk_size);
+                
+                //calculate_pi_chudnovsky_dynamic(thread_count, pi_approx);
+                calculate_pi_chudnovsky_dynamic(thread_count, pi_approx, reference_terms, reference_sums);
+            }
+            else 
+            {
+                std::cerr << "[Main] Using static multithreaded Chudnovsky Algorithm \n";
+                calculate_pi_multithreaded(ChudnovskyTermCalculator::estimate_required_k(decimal_places), pi_approx, reference_terms, reference_sums);
+            }
         }
         else
         {
@@ -1107,7 +1137,7 @@ int main(int argc, char* argv[])
             calculate_chudnovsky_algorithm(pi_approx, reference_terms, reference_sums);
         }
     }
-
+    
     // Output the computed value to file
     std::string computed_pi_str = write_computed_pi_to_file(pi_approx);
 
@@ -1123,6 +1153,7 @@ int main(int argc, char* argv[])
 
     // Free memory
     mpfr_clear(pi_approx);
-
+    
+    std::cout << "[Main] Done.\n";
     return 0;
 }

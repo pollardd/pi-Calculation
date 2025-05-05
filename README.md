@@ -164,12 +164,14 @@ PC
     Processor:  Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz 
     RAM:        32 GB
     
-    Formula                         Decimal Places          Completion Time
-    =========================================================================
-    Gauss Legendre                  10,000,000              30.021s
-    Gauss Legendre               1,000,000,000       1h 26m 49.000s
-    Chudnovsky Single Thread           100,000              36.012s
-    Chudnovsky Multi Thread (CPU 7)  1,000,000          33m  3.231s
+    Formula                             Decimal Places          Completion Time
+    =============================================================================
+    Gauss Legendre                         10,000,000                   30.021s
+    Gauss Legendre                      1,000,000,000            1h 26m 49.000s
+    Chudnovsky Single Thread                  100,000                   36.012s
+    Chudnovsky Multi Thread (CPU 7)           300,000                2m 12.015s
+    Chudnovsky Multi Thread (CPU 7)         1,000,000               33m  3.231s
+    Chudnovsky Dynamic Thread (CPU 7)       1,000,000
     Chudnovsky Multi Thread (GPU ?)     <TODO>               <TODO>
 
 MAC
