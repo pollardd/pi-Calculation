@@ -20,3 +20,13 @@ GPU
 
 # Old files folder
 old
+
+#Ignore Downloads
+Downloads/
+
+# Windows Cross Compiler
+mingw-libs/
+
+# Do not track windows executable in Git
+# Add this manually to the archive each time it is updated.
+calculate_pi.exe
